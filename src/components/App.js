@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Route, Switch, Redirect, withRouter } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Route,
+  Switch,
+  Redirect,
+  useHistory
+} from 'react-router-dom';
 import Login from './Login.js';
 import Register from './Register.js';
 import Ducks from './Ducks.js';
@@ -8,63 +14,93 @@ import ProtectedRoute from './ProtectedRoute';
 import * as duckAuth from '../duckAuth.js';
 import './styles/App.css';
 
-class App extends React.Component {
-  constructor(props){
-    super(props);
-    this.state = {
-      loggedIn: false
-    }
-    this.tokenCheck = this.tokenCheck.bind(this);
-    this.handleLogin = this.handleLogin.bind(this);
-  }
-  componentDidMount() {
-    this.tokenCheck();
-  };
-  handleLogin(){
-    this.setState({
-      loggedIn: true
-    })
-  }
-  tokenCheck = () => {
-    if (localStorage.getItem('jwt')){
-      let jwt = localStorage.getItem('jwt');
-      duckAuth.getContent(jwt).then((res) => {
-        if (res){
-          let userData = {
+function App() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [userData, setUserData] = useState({});
+  const history = useHistory();
+
+  const auth = async (jwt) => {
+    return duckAuth.getContent(jwt)
+      .then((res) => {
+        if (res) {
+          setLoggedIn(true);
+          setUserData({
             username: res.username,
             email: res.email
-          }
-          this.setState({
-            loggedIn: true,
-            userData
-          }, () => {
-            this.props.history.push("/ducks");
           });
         }
-      }); 
+      })
+  };
+
+  useEffect(() => {
+    const jwt = localStorage.getItem('jwt');
+
+    if (jwt) {
+      auth(jwt);
     }
-  }
-  render(){
-    return (
+  }, [loggedIn]);
+
+  useEffect(() => {
+    if (loggedIn) history.push('/ducks');
+  }, [loggedIn]);
+
+  const onRegister = ({ username, password, email }) => {
+    return duckAuth.register(username, password, email).then((res) => {
+      if (!res || res.statusCode === 400) throw new Error('Что-то пошло не так');
+      return res;
+    });
+  };
+
+  const onLogin = ({ username, password }) => {
+    return duckAuth.authorize(username, password).then((res) => {
+      if (!res) throw new Error('Неправильные имя пользователя или пароль');
+      if (res.jwt) {
+        setLoggedIn(true);
+        localStorage.setItem('jwt', res.jwt);
+      }
+    });
+  };
+
+  const onSignOut = () => {
+    localStorage.removeItem('jwt');
+    setLoggedIn(false);
+    history.push('/login');
+  };
+
+  return (
+    <Router>
       <Switch>
-        <ProtectedRoute path="/ducks" loggedIn={this.state.loggedIn} component={Ducks} />
-        <ProtectedRoute path="/my-profile" loggedIn={this.state.loggedIn} userData={this.state.userData} component={MyProfile} />
-        <Route path="/login">
+        <ProtectedRoute
+          exact
+          path="/ducks"
+          loggedIn={loggedIn}
+          onSignOut={onSignOut}
+          component={Ducks}
+        />
+        <ProtectedRoute
+          exact
+          path="/my-profile"
+          loggedIn={loggedIn}
+          userData={userData}
+          onSignOut={onSignOut}
+          component={MyProfile}
+        />
+        <Route exact path="/login">
           <div className="loginContainer">
-            <Login handleLogin={this.handleLogin} tokenCheck={this.tokenCheck} />
+            <Login onLogin={onLogin} />
           </div>
         </Route>
-        <Route path="/register">
+        <Route exact path="/register">
           <div className="registerContainer">
-            <Register />
+            <Register onRegister={onRegister} />
           </div>
         </Route>
         <Route>
-          {this.state.loggedIn ? <Redirect to="/ducks" /> : <Redirect to="/login" />}
+          {loggedIn ? <Redirect to="/ducks" /> : <Redirect to="/login" />}
         </Route>
       </Switch>
-    )
-  }
+    </Router>
+  );
 }
 
-export default withRouter(App);
+export default App;

@@ -1,85 +1,103 @@
-import React, { Button } from 'react';
-import { Link, withRouter } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useHistory } from 'react-router-dom';
 import Logo from './Logo.js';
-import * as duckAuth from '../duckAuth.js';
 import './styles/Register.css';
 
-class Register extends React.Component {
-  constructor(props){
-    super(props);
-    this.state = {
-      username: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      message: ''
-    }
-    this.handleChange = this.handleChange.bind(this);
-    this.handleSubmit = this.handleSubmit.bind(this);
-  }
-  handleChange(e) {
-    const {name, value} = e.target;
-    this.setState({
-      [name]: value 
-    });
-  }
-  handleSubmit(e){
+function Register({ onRegister }) {
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const history = useHistory();
+
+  const resetForm = () => {
+    setUsername('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setMessage('');
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (this.state.password === this.state.confirmPassword){
-      let { username, password, email } = this.state;
-      duckAuth.register(username, password, email).then((res) => {
-        if(res.statusCode !== 400){
-          this.setState({
-            message: ''
-          }, () => {
-            this.props.history.push('/login');
-          })
-        } else {
-          this.setState({
-            message: 'Что-то пошло не так!'
-          })
-        }
-      });
+
+    if (password !== confirmPassword) {
+      return setMessage('Пароли должны совпадать');
     }
-  }
-  render(){
-    return(
-      <div className="register">
-        <Logo title={'CryptoDucks'}/>
-        <p className="register__welcome">
-          Пожалуйста, зарегистрируйтесь.
-        </p>
-        <p className="register__error">
-          {this.state.message}
-        </p>
-        <form onSubmit={this.handleSubmit} className="register__form">
-          <label for="username">
-            Логин:
-          </label>
-          <input id="username" name="username" type="text" value={this.state.username} onChange={this.handleChange} />
-          <label for="email">
-            Email:
-          </label>
-          <input id="email" name="email" type="email" value={this.state.email} onChange={this.handleChange} />
-          <label for="password">
-            Пароль:
-          </label>
-          <input id="password" name="password" type="password" value={this.state.password} onChange={this.handleChange} />
-          <label for="confirmPassword">
-            Подтвердите пароль:
-          </label>
-          <input id="confirmPassword" name="confirmPassword" type="password" value={this.state.confirmPassword} onChange={this.handleChange} />
-          <div className="register__button-container">
-            <button type="submit" className="register__link">Зарегистрироваться</button>
-          </div>
-        </form>
-        <div className="register__signin">
-          <p>Уже зарегистрированы?</p>
-          <Link to="login" className="register__login-link">Войти</Link>
+
+    onRegister({ username, password, email })
+      .then(resetForm)
+      .then(() => history.push('/login'))
+      .catch((err) => setMessage(err.message || 'Что-то пошло не так'));
+  };
+
+  useEffect(() => {
+    if (localStorage.getItem('jwt')) {
+      history.push('/ducks');
+    }
+  }, []);
+
+  return(
+    <div className="register">
+      <Logo title="CryptoDucks" />
+      <p className="register__welcome">
+        Пожалуйста, зарегистрируйтесь.
+      </p>
+      <p className="register__error">
+        {message}
+      </p>
+      <form onSubmit={handleSubmit} className="register__form">
+        <label for="username">
+          Логин:
+        </label>
+        <input
+          id="username"
+          name="username"
+          type="text"
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+        />
+        <label for="email">
+          Email:
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+        />
+        <label for="password">
+          Пароль:
+        </label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+        />
+        <label for="confirmPassword">
+          Подтвердите пароль:
+        </label>
+        <input
+          id="confirmPassword"
+          name="confirmPassword"
+          type="password"
+          value={confirmPassword}
+          onChange={e => setConfirmPassword(e.target.value)}
+        />
+        <div className="register__button-container">
+          <button type="submit" className="register__link">Зарегистрироваться</button>
         </div>
+      </form>
+      <div className="register__signin">
+        <p>Уже зарегистрированы?</p>
+        <Link to="login" className="register__login-link">Войти</Link>
       </div>
-    )
-  }
+    </div>
+  );
 }
 
-export default withRouter(Register);
+export default Register;
