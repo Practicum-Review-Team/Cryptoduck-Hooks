@@ -1,3 +1,0 @@
-include:
-  - project: 'prk-dev/ci-templates'
-    file: 'templates/build-frontend.yml'
